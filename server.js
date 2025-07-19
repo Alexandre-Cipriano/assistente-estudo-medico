@@ -1,10 +1,10 @@
-// server.js - Código Completo
 const express = require('express');
+const fetch = require('node-fetch'); // Adicione esta linha no topo!
 const app = express();
 const port = 3000;
 
-// Configuração da API DeepSeek
-const DEEPSEEK_API_KEY = "sk-ee5754b1cba24c408cece9d74c0e7942"; // 👈 COLE SUA CHAVE
+// Configuração (COLE SUA CHAVE AQUI!)
+const DEEPSEEK_API_KEY = "sua_chave_api_aqui";
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 
 // Rota principal
@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
   res.send('🏥 Assistente Médico Online! Use /ask?q=sua_pergunta');
 });
 
-// Rota MÉDICA - /ask
+// Rota MÉDICA - /ask (Versão Corrigida)
 app.get('/ask', async (req, res) => {
   const pergunta = req.query.q;
   
@@ -21,14 +21,14 @@ app.get('/ask', async (req, res) => {
   }
 
   try {
-    // Configurar o prompt médico
+    // Configurar o prompt médico em português BR
     const promptMedico = `Você é um especialista em medicina brasileira.
-Responda de forma clara e baseada em evidências científicas atuais.
+Responda de forma clara e baseada em evidências científicas atuais do Brasil.
 Pergunta: ${pergunta}
 Resposta:`;
 
     // Enviar para DeepSeek API
-    const resposta = await fetch(DEEPSEEK_API_URL, {
+    const respostaApi = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -37,23 +37,41 @@ Resposta:`;
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [{ role: "user", content: promptMedico }],
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 2000
       })
     });
 
-    const dados = await resposta.json();
+    const dados = await respostaApi.json();
     
+    // Verificação EXTRA para evitar erros!
+    if (!dados.choices || !dados.choices[0] || !dados.choices[0].message) {
+      console.error("Resposta inesperada da API:", dados);
+      return res.send('❌ Ops! A API retornou uma resposta inesperada. Tente novamente.');
+    }
+
+    const respostaMedica = dados.choices[0].message.content;
+
     // Enviar resposta formatada
     res.send(`
-      <h2>Pergunta:</h2>
-      <p>${pergunta}</p>
-      <h2>Resposta Médica:</h2>
-      <p>${dados.choices[0].message.content.replace(/\n/g, '<br>')}</p>
+      <style>body {font-family: Arial; padding: 20px;}</style>
+      <h2>❓ Pergunta:</h2>
+      <blockquote>${pergunta}</blockquote>
+      <h2>💡 Resposta Médica:</h2>
+      <p>${respostaMedica.replace(/\n/g, '<br>')}</p>
+      <hr>
+      <small>Fonte: DeepSeek Medical Assistant • ${new Date().toLocaleString('pt-BR')}</small>
     `);
 
   } catch (erro) {
-    res.send(`❌ Erro: ${erro.message}`);
+    console.error("Erro completo:", erro);
+    res.send(`❌ Erro: ${erro.message || 'Ocorreu um problema inesperado'}`);
   }
+});
+
+// Iniciar servidor
+app.listen(port, () => {
+  console.log(`Servidor rodando em http://localhost:${port}`);
 });
 
 // Iniciar servidor
